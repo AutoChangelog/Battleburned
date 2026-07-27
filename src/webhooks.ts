@@ -1,6 +1,7 @@
 import type { EmitterWebhookEvent } from "@octokit/webhooks";
 import type { PullRequestClosedPayload } from "./types.js";
 import { shouldIgnore, parseConfig } from "./config.js";
+import { fetchRepoFile } from "./github.js";
 import { summarizePR } from "./summarizer.js";
 import { publishToReleases } from "./publisher.js";
 
@@ -23,13 +24,35 @@ export async function handlePullRequestClosed(
 
   const pr = payload.pull_request;
   const repo = payload.repository;
+  const installationId = payload.installation?.id;
+
+  if (!installationId) {
+    console.log(
+      `PR #${pr.number} in ${repo.full_name} has no installation ID — skipping`,
+    );
+    return;
+  }
 
   console.log(`Processing merged PR #${pr.number} in ${repo.full_name}`);
 
-  // Load repo config
-  // TODO: fetch .changelog.yml from the repo using GitHub API
-  // For now, uses default config
-  const config = parseConfig("");
+  // Load repo config from .changelog.yml
+  let configYaml: string | null = null;
+  try {
+    configYaml = await fetchRepoFile(
+      installationId,
+      repo.owner.login,
+      repo.name,
+      ".changelog.yml",
+      pr.base.ref,
+    );
+  } catch (err) {
+    console.warn(
+      `Failed to fetch .changelog.yml for ${repo.full_name}, using defaults:`,
+      err instanceof Error ? err.message : err,
+    );
+  }
+
+  const config = parseConfig(configYaml ?? "");
 
   // Check ignore rules
   if (
@@ -54,7 +77,7 @@ export async function handlePullRequestClosed(
 
   // Publish to GitHub Releases
   try {
-    await publishToReleases(entry, repo, payload.installation?.id);
+    await publishToReleases(entry, repo, installationId);
     console.log(`Published changelog entry for PR #${pr.number}`);
   } catch (err) {
     console.error(`Publishing failed for PR #${pr.number}:`, err);
