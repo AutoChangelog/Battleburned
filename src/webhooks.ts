@@ -69,7 +69,7 @@ export async function handlePullRequestClosed(
   // Summarize with LLM
   let entry;
   try {
-    entry = await summarizePR(pr, repo);
+    entry = await summarizePR(pr, repo, installationId, config);
   } catch (err) {
     console.error(`Summarization failed for PR #${pr.number}:`, err);
     return;
