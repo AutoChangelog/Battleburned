@@ -1,0 +1,35 @@
+# AutoChangelog configuration
+# Place this file in the root of any repo the GitHub App is installed on.
+
+# Tone of the changelog: "formal", "casual", or "neutral"
+tone: neutral
+
+# Categories to sort PRs into (order matters — first match wins)
+categories:
+  - label: 🚀 Features
+    match:
+      - labels: ["feature", "enhancement"]
+      - title_prefix: "feat"
+  - label: 🐛 Fixes
+    match:
+      - labels: ["bug", "fix"]
+      - title_prefix: "fix"
+  - label: 💥 Breaking Changes
+    match:
+      - labels: ["breaking"]
+      - title_contains: "BREAKING CHANGE"
+  - label: 📝 Documentation
+    match:
+      - labels: ["docs", "documentation"]
+      - title_prefix: "docs"
+  - label: 🧹 Chores
+    match:
+      - labels: ["chore", "dependencies"]
+      - title_prefix: "chore"
+  - label: 🔧 Other
+    match: []  # catch-all
+
+# PRs to ignore (labels, title patterns, or authors)
+ignore:
+  labels: ["skip-changelog", "no-release-note"]
+  title_patterns: ["^WIP:", "^Draft:"]
