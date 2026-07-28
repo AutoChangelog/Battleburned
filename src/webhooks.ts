@@ -4,6 +4,7 @@ import { shouldIgnore, parseConfig } from "./config.js";
 import { fetchRepoFile } from "./github.js";
 import { summarizePR } from "./summarizer.js";
 import { publishToReleases } from "./publisher.js";
+import { getLicenseTier, canProcessRepo } from "./license.js";
 
 /**
  * Handle pull_request.closed webhook events.
@@ -34,6 +35,22 @@ export async function handlePullRequestClosed(
   }
 
   console.log(`Processing merged PR #${pr.number} in ${repo.full_name}`);
+
+  // License tier enforcement
+  const tier = getLicenseTier(installationId);
+
+  if (tier === "free") {
+    const { allowed, isFirstRepo } = canProcessRepo(
+      installationId,
+      repo.full_name,
+    );
+    if (!isFirstRepo && !allowed) {
+      console.warn(
+        `[license] Free tier limited to 1 repo — skipping ${repo.full_name} (installation ${installationId})`,
+      );
+      return;
+    }
+  }
 
   // Load repo config from .changelog.yml
   let configYaml: string | null = null;
@@ -77,7 +94,7 @@ export async function handlePullRequestClosed(
 
   // Publish to GitHub Releases
   try {
-    await publishToReleases(entry, repo, installationId);
+    await publishToReleases(entry, repo, installationId, tier);
     console.log(`Published changelog entry for PR #${pr.number}`);
   } catch (err) {
     console.error(`Publishing failed for PR #${pr.number}:`, err);

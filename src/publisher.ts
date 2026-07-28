@@ -4,6 +4,8 @@ import { createInstallationClient } from "./github.js";
 
 const CHANGELOG_TAG = "changelog";
 const CHANGELOG_TITLE = "Changelog";
+const FREE_FOOTER =
+  "\n\n---\n*Powered by [AutoChangelog](https://cc390b0202c121dc4c0c8252fb4af838.ctonew.app)*";
 
 /**
  * Publish a changelog entry to the repo's GitHub Releases.
@@ -15,6 +17,7 @@ export async function publishToReleases(
   entry: ChangelogEntry,
   repo: { full_name: string; name: string; owner: { login: string } },
   installationId?: number,
+  tier: "free" | "pro" = "free",
 ): Promise<void> {
   if (!installationId) {
     console.warn("[publisher] No installation ID — skipping release publish");
@@ -52,9 +55,14 @@ export async function publishToReleases(
   }
 
   if (release) {
-    // Update existing release: prepend the new entry at the top
-    const existingBody = release.data.body ?? "";
-    const newBody = [line, existingBody].filter(Boolean).join("\n\n");
+    // Update existing release: strip any existing footer, prepend new entry
+    let existingBody = release.data.body ?? "";
+    // Remove any existing footer
+    existingBody = existingBody.replace(FREE_FOOTER, "").trimEnd();
+    let newBody = [line, existingBody].filter(Boolean).join("\n\n");
+    if (tier === "free") {
+      newBody += FREE_FOOTER;
+    }
 
     await octokit.rest.repos.updateRelease({
       owner,
@@ -68,12 +76,17 @@ export async function publishToReleases(
     );
   } else {
     // Create a new changelog release — visible immediately (draft: false)
+    let body = line;
+    if (tier === "free") {
+      body += FREE_FOOTER;
+    }
+
     await octokit.rest.repos.createRelease({
       owner,
       repo: repoName,
       tag_name: CHANGELOG_TAG,
       name: CHANGELOG_TITLE,
-      body: line,
+      body,
       draft: false,
     });
 
